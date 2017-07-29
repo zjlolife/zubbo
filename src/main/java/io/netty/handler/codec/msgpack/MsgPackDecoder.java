@@ -9,18 +9,14 @@ import java.util.List;
 
 public class MsgPackDecoder extends MessageToMessageDecoder<ByteBuf> {
 
-    int IP_PORT_LENGTH = 4;
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
         final byte [] array;
         final int length = msg.readableBytes();
-        byte [] ipPort = new byte[IP_PORT_LENGTH];
-        msg.readBytes(ipPort);
-        array = new byte[length - IP_PORT_LENGTH];
+        array = new byte[length];
         msg.getBytes(msg.readerIndex(), array, 0, length);
         MessagePack messagePack = new MessagePack();
-        out.add(ipPort);
         out.add(messagePack.read(array));
     }
 }

@@ -1,40 +1,38 @@
-package com.zjlolife.zubbo.server;
+package com.zjlolife.zubbo.client;
 
-import io.netty.bootstrap.ServerBootstrap;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.msgpack.MsgPackDecoder;
 import io.netty.handler.codec.msgpack.MsgPackEncoder;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.*;
 
-public class NettyServer {
+public class NettyClient {
 
-    private int port;
+    private final String host;
 
-    private Executor executor;
+    private final int port;
 
-    public NettyServer(int port) {
+    public NettyClient(String host, int port) {
+        this.host = host;
         this.port = port;
-        executor = new ThreadPoolExecutor(
-            20, 100, 0, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>());
     }
 
-    public void open() throws InterruptedException {
-        NioEventLoopGroup group = new NioEventLoopGroup(); //3
+    public void open() throws Exception {
+        EventLoopGroup group = new NioEventLoopGroup();
         try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(group)                                //4
-                    .channel(NioServerSocketChannel.class)        //5
-                    .localAddress(new InetSocketAddress(port))    //6
-                    .childHandler(new ChannelInitializer<SocketChannel>() { //7
+            Bootstrap b = new Bootstrap();				//1
+            b.group(group)								//2
+                    .channel(NioSocketChannel.class)			//3
+                    .remoteAddress(new InetSocketAddress(host, port))	//4
+                    .handler(new ChannelInitializer<SocketChannel>() {	//5
                         @Override
                         public void initChannel(SocketChannel ch)
                                 throws Exception {
@@ -45,15 +43,15 @@ public class NettyServer {
                             ch.pipeline().addLast("msgDecoder", new MsgPackDecoder());
                             ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(2));
                             ch.pipeline().addLast("msgEncoder", new MsgPackEncoder());
-                            ch.pipeline().addLast("serverHandler", new ServerHandler(executor));
+                            ch.pipeline().addLast("clientHandle", new ClientHandler());
                         }
                     });
 
-            ChannelFuture f = b.bind().sync();            //8
-            f.channel().closeFuture().sync();            //9
-        }
-        finally {
-            group.shutdownGracefully().sync();            //10
+            ChannelFuture f = b.connect().sync();		//6
+
+            f.channel().closeFuture().sync();			//7
+        } finally {
+            group.shutdownGracefully().sync();			//8
         }
     }
 }
